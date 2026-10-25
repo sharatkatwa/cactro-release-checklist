@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'One-Click AWS Deployment for Release Checklist Tool (React SPA, GraphQL, PostgreSQL, Grafana, Prometheus)'
+
+Parameters:
+  GitHubRepoUrl:
+    Type: String
+    Default: 'https://github.com/sharatkatwa/cactro-release-checklist.git'
+    Description: 'Public GitHub repository URL containing the application code'
+
+  InstanceType:
+    Type: String
+    Default: 't3.small'
+    AllowedValues:
+      - 't3.micro'
+      - 't3.small'
+      - 't3.medium'
+      - 't3.large'
+    Description: 'EC2 instance type (t3.small or t3.medium recommended for Docker and stress testing)'
+
+Resources:
+  ReleaseCheckSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Allow HTTP, GraphQL API, and Grafana access'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: 'React Web Application (HTTP)'
+        - IpProtocol: tcp
+          FromPort: 4000
+          ToPort: 4000
+          CidrIp: 0.0.0.0/0
+          Description: 'Apollo GraphQL Server'
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
+          Description: 'Grafana Observability Dashboard'
+        - IpProtocol: tcp
+          FromPort: 9090
+          ToPort: 9090
+          CidrIp: 0.0.0.0/0
+          Description: 'Prometheus Metrics Server'
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: 'SSH Access'
+
+  ReleaseCheckInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: 'resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id'
+      SecurityGroups:
+        - !Ref ReleaseCheckSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 20
+            VolumeType: gp3
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -ex
+          apt-get update -y
+          apt-get install -y ca-certificates curl gnupg git
+
+          install -m 0755 -d /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+          chmod a+r /etc/apt/keyrings/docker.gpg
+
+          echo "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+          apt-get update -y
+          apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+          systemctl start docker
+          systemctl enable docker
+
+          mkdir -p /opt/releasecheck
+          cd /opt/releasecheck
+          git clone ${GitHubRepoUrl} .
+          docker compose up -d --build
+
+Outputs:
+  WebApplicationURL:
+    Description: 'Public URL of the Release Checklist Web Application'
+    Value: !Sub 'http://${ReleaseCheckInstance.PublicDnsName}'
+
+  GrafanaDashboardURL:
+    Description: 'Grafana Observability Dashboard URL'
+    Value: !Sub 'http://${ReleaseCheckInstance.PublicDnsName}:3000'
+
+  GraphQLAPIURL:
+    Description: 'GraphQL Endpoint URL'
+    Value: !Sub 'http://${ReleaseCheckInstance.PublicDnsName}:4000/graphql'
