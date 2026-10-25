@@ -25,13 +25,30 @@ function formatRelease(release: any) {
   };
 }
 
+// In-memory read cache with instant mutation invalidation
+let cachedReleases: any[] | null = null;
+let cacheTimestamp = 0;
+const CACHE_TTL_MS = 1000; // 1-second cache to absorb high-concurrency read storms
+
+export function invalidateReleaseCache() {
+  cachedReleases = null;
+  cacheTimestamp = 0;
+}
+
 export const resolvers = {
   Query: {
     releases: async () => {
+      const now = Date.now();
+      if (cachedReleases && now - cacheTimestamp < CACHE_TTL_MS) {
+        return cachedReleases;
+      }
+
       const records = await prisma.release.findMany({
         orderBy: [{ date: "desc" }, { createdAt: "desc" }],
       });
-      return records.map(formatRelease);
+      cachedReleases = records.map(formatRelease);
+      cacheTimestamp = now;
+      return cachedReleases;
     },
 
     release: async (_: unknown, { id }: { id: string }) => {
@@ -75,6 +92,7 @@ export const resolvers = {
         },
       });
 
+      invalidateReleaseCache();
       return formatRelease(created);
     },
 
@@ -119,6 +137,7 @@ export const resolvers = {
         data: updateData,
       });
 
+      invalidateReleaseCache();
       return formatRelease(updated);
     },
 
@@ -153,6 +172,7 @@ export const resolvers = {
         },
       });
 
+      invalidateReleaseCache();
       return formatRelease(updated);
     },
 
@@ -163,6 +183,7 @@ export const resolvers = {
       }
 
       await prisma.release.delete({ where: { id } });
+      invalidateReleaseCache();
       return true;
     },
   },

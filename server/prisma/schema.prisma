@@ -24,5 +24,6 @@ model Release {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
+  @@index([date(sort: Desc), createdAt(sort: Desc)])
   @@map("releases")
 }

@@ -19,6 +19,8 @@ const PORT = parseInt(process.env.PORT || "4000", 10);
 export async function createServer() {
   const app = express();
   const httpServer = http.createServer(app);
+  httpServer.keepAliveTimeout = 65000;
+  httpServer.headersTimeout = 66000;
 
   const server = new ApolloServer({
     typeDefs,

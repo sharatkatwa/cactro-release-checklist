@@ -29,10 +29,21 @@ services:
         condition: service_healthy
     environment:
       PORT: 4000
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/releasecheck?schema=public
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/releasecheck?schema=public&connection_limit=60&pool_timeout=30
       NODE_ENV: production
     ports:
       - "4000:4000"
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: releasecheck-client
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
 
   prometheus:
     image: prom/prometheus:v2.54.1
