@@ -1,0 +1,28 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["metrics"]
+}
+
+enum ReleaseStatus {
+  PLANNED
+  ONGOING
+  DONE
+}
+
+model Release {
+  id             String        @id @default(uuid())
+  name           String
+  date           DateTime
+  status         ReleaseStatus @default(PLANNED)
+  additionalInfo String?       @db.Text
+  completedSteps String[]      @default([])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@map("releases")
+}

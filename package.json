@@ -1,0 +1,23 @@
+{
+  "name": "release-checklist-tool",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Release Checklist Tool - modern web application with GraphQL API, React SPA, and PostgreSQL",
+  "scripts": {
+    "test:server": "npm --prefix server test",
+    "test:client": "npm --prefix client test",
+    "test": "npm run test:server && npm run test:client",
+    "build:server": "npm --prefix server run build",
+    "build:client": "npm --prefix client run build",
+    "build": "npm run build:server && npm run build:client",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "test:stress": ".\\tools\\k6.exe run --summary-trend-stats \"avg,min,med,max,p(90),p(95),p(99)\" k6-stress-test.js",
+    "test:stress:report": "powershell -Command \"Start-Process test-results/latest-report.html\"",
+    "diagnose": "node diagnose-bottleneck.js",
+    "test:diagnose": "powershell -Command \"$diag = Start-Process node -ArgumentList 'diagnose-bottleneck.js' -PassThru; Start-Sleep -Seconds 2; npm run test:stress; Stop-Process -Id $diag.Id -Force\"",
+    "monitoring:grafana": "powershell -Command \"Start-Process http://localhost:3000/d/releasecheck-metrics/releasecheck-database-and-api-observability\"",
+    "monitoring:prometheus": "powershell -Command \"Start-Process http://localhost:9090\""
+  }
+}

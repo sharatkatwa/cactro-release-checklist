@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 2s
+  evaluation_interval: 2s
+
+scrape_configs:
+  - job_name: "releasecheck-backend"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["backend:4000"]
+        labels:
+          app: "releasecheck-backend"
